@@ -31,6 +31,8 @@ export default defineConfig({
       '@': resolve(__dirname, 'src'),
     },
   },
+  // Use empty base for Chrome extension compatibility
+  base: '',
   build: {
     rollupOptions: {
       input: {
