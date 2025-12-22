@@ -12,6 +12,7 @@ let eyedropperType: 'foreground' | 'background' = 'foreground'
 let overlayContainer: HTMLDivElement | null = null
 let colorPreview: HTMLDivElement | null = null
 let isScanning = false
+let cssColorProbeEl: HTMLDivElement | null = null
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
@@ -36,6 +37,82 @@ function createOverlayContainer() {
   overlayContainer.className = 'thewcag-overlay'
   overlayContainer.id = 'thewcag-overlay-container'
   document.body.appendChild(overlayContainer)
+}
+
+/**
+ * Create (once) a hidden element we can use to normalize any CSS color string
+ * into a computed rgb/rgba value that our parser understands.
+ */
+function getCssColorProbe(): HTMLDivElement {
+  if (cssColorProbeEl) return cssColorProbeEl
+  cssColorProbeEl = document.createElement('div')
+  cssColorProbeEl.style.position = 'fixed'
+  cssColorProbeEl.style.left = '-99999px'
+  cssColorProbeEl.style.top = '-99999px'
+  cssColorProbeEl.style.width = '1px'
+  cssColorProbeEl.style.height = '1px'
+  cssColorProbeEl.style.pointerEvents = 'none'
+  cssColorProbeEl.style.opacity = '0'
+  document.documentElement.appendChild(cssColorProbeEl)
+  return cssColorProbeEl
+}
+
+function parseAlphaFromCssColor(str: string): number {
+  const s = str.trim().toLowerCase()
+  if (s === 'transparent') return 0
+
+  // rgba(1, 2, 3, 0.5)
+  let m = s.match(/rgba\s*\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*,\s*([\d.]+)\s*\)/)
+  if (m) return Math.min(1, Math.max(0, parseFloat(m[1])))
+
+  // rgb(1 2 3 / 50%) or rgb(1 2 3 / 0.5)
+  m = s.match(/rgb[a]?\s*\(\s*[\d.]+\s+[\d.]+\s+[\d.]+\s*\/\s*([\d.]+%?)\s*\)/)
+  if (m) {
+    const raw = m[1]
+    if (raw.endsWith('%')) return Math.min(1, Math.max(0, parseFloat(raw) / 100))
+    return Math.min(1, Math.max(0, parseFloat(raw)))
+  }
+
+  // color(srgb r g b / a)
+  m = s.match(/color\s*\(\s*srgb\s+[\d.]+\s+[\d.]+\s+[\d.]+\s*\/\s*([\d.]+%?)\s*\)/)
+  if (m) {
+    const raw = m[1]
+    if (raw.endsWith('%')) return Math.min(1, Math.max(0, parseFloat(raw) / 100))
+    return Math.min(1, Math.max(0, parseFloat(raw)))
+  }
+
+  // If no alpha specified, assume opaque.
+  return 1
+}
+
+/**
+ * Parse a CSS color string into RGB, with a browser-based fallback for modern syntaxes
+ * like `oklab()`, `color(display-p3 ...)`, CSS variables, etc.
+ */
+function parseCssColorToRgb(colorStr: string, property: 'color' | 'backgroundColor' = 'color'): { rgb: { r: number; g: number; b: number } | null; alpha: number } {
+  // First try our pure parser
+  const direct = parseColor(colorStr)
+  if (direct) {
+    return { rgb: direct, alpha: parseAlphaFromCssColor(colorStr) }
+  }
+
+  // Fallback: let the browser compute it
+  try {
+    const probe = getCssColorProbe()
+    if (property === 'color') {
+      probe.style.color = ''
+      probe.style.color = colorStr
+      const computed = window.getComputedStyle(probe).color
+      return { rgb: parseColor(computed), alpha: parseAlphaFromCssColor(computed) }
+    }
+
+    probe.style.backgroundColor = ''
+    probe.style.backgroundColor = colorStr
+    const computed = window.getComputedStyle(probe).backgroundColor
+    return { rgb: parseColor(computed), alpha: parseAlphaFromCssColor(computed) }
+  } catch {
+    return { rgb: null, alpha: 1 }
+  }
 }
 
 /**
@@ -322,16 +399,16 @@ async function scanPage(): Promise<ScanResult[]> {
     // Mark as processed
     processedElements.add(element)
 
-    // Get colors
-    const fgColorStr = style.color
-    const bgColorStr = getEffectiveBackgroundColor(element)
+    // Get colors (with robust fallback parsing)
+    const fg = parseCssColorToRgb(style.color, 'color')
+    const bg = getEffectiveBackgroundRgb(element)
 
-    const fgColor = parseColor(fgColorStr)
-    const bgColor = parseColor(bgColorStr)
+    const fgColor = fg.rgb
+    const bgColor = bg
 
     if (!fgColor || !bgColor) {
       skippedColorParse++
-      console.log('Color parse failed:', { fgColorStr, bgColorStr, fgColor, bgColor })
+      console.log('Color parse failed:', { fg: style.color })
       return
     }
 
@@ -451,23 +528,24 @@ function getDirectTextContent(element: HTMLElement): string {
 /**
  * Get effective background color (walk up tree)
  */
-function getEffectiveBackgroundColor(element: HTMLElement): string {
+function getEffectiveBackgroundRgb(element: HTMLElement): { r: number; g: number; b: number } | null {
   let current: HTMLElement | null = element
   
   while (current) {
     const style = window.getComputedStyle(current)
     const bg = style.backgroundColor
     
-    // Check if background is not transparent
-    if (bg && bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)') {
-      return bg
+    // Normalize and check transparency robustly
+    const parsed = parseCssColorToRgb(bg, 'backgroundColor')
+    if (parsed.rgb && parsed.alpha > 0.01) {
+      return parsed.rgb
     }
     
     current = current.parentElement
   }
   
   // Default to white if no background found
-  return 'rgb(255, 255, 255)'
+  return { r: 255, g: 255, b: 255 }
 }
 
 /**
@@ -540,10 +618,10 @@ function checkElementAtPoint(x: number, y: number) {
 
   const style = window.getComputedStyle(element)
   const fgColorStr = style.color
-  const bgColorStr = getEffectiveBackgroundColor(element)
+  const fg = parseCssColorToRgb(fgColorStr, 'color')
+  const bgColor = getEffectiveBackgroundRgb(element)
 
-  const fgColor = parseColor(fgColorStr)
-  const bgColor = parseColor(bgColorStr)
+  const fgColor = fg.rgb
 
   if (!fgColor || !bgColor) {
     showToast('Could not determine colors for this element')
