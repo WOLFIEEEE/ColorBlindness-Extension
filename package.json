@@ -3,6 +3,10 @@
   "version": "1.0.1",
   "description": "Production-grade WCAG color contrast checker with eyedropper, auto-suggestions, and full page scanning",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thewcag/TheWCAG-Extension.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

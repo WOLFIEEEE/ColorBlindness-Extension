@@ -49,7 +49,7 @@ A production-grade Chrome extension for checking color contrast ratios against W
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/thewcag/extension.git
+   git clone https://github.com/thewcag/TheWCAG-Extension.git
    cd TheWCAG-Extension
    ```
 
@@ -283,23 +283,9 @@ exportData(): Promise<StorageData>
 importData(data: Partial<StorageData>): Promise<void>
 ```
 
-## Contributing
+## Development
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Make your changes
-4. Run tests: `npm run test:run`
-5. Run lint: `npm run lint`
-6. Commit your changes: `git commit -m 'Add amazing feature'`
-7. Push to the branch: `git push origin feature/amazing-feature`
-8. Open a Pull Request
-
-### Code Style
-
-- TypeScript strict mode enabled
-- ESLint with React and TypeScript rules
-- Prettier formatting (recommended)
-- Conventional commits preferred
+This extension is developed and maintained by TheWCAG.com. For development setup, see the [Development](#installation) section above.
 
 ## Testing
 
@@ -331,14 +317,16 @@ See our full [Privacy Policy](PRIVACY.md) for details.
 
 ## License
 
-MIT License - See [LICENSE](LICENSE) file for details.
+Proprietary License - See [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2024 TheWCAG.com. All rights reserved.
 
 ## Links
 
 - [TheWCAG.com](https://thewcag.com) - Full WCAG reference and tools
 - [WCAG 2.2 Guidelines](https://www.w3.org/TR/WCAG22/)
 - [Understanding WCAG Contrast](https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html)
-- [Report Issues](https://github.com/thewcag/extension/issues)
+- [Report Issues](https://github.com/thewcag/TheWCAG-Extension/issues)
 
 ## Changelog
 

@@ -92,13 +92,7 @@ We may update this privacy policy from time to time. Any changes will be reflect
 If you have questions about this privacy policy or the Extension, please:
 
 - Visit: [https://thewcag.com](https://thewcag.com)
-- GitHub: [https://github.com/thewcag/extension/issues](https://github.com/thewcag/extension/issues)
-
-## Open Source
-
-This Extension is open source. You can review the complete source code to verify our privacy practices:
-
-- GitHub Repository: [https://github.com/thewcag/extension](https://github.com/thewcag/extension)
+- GitHub Issues: [https://github.com/thewcag/TheWCAG-Extension/issues](https://github.com/thewcag/TheWCAG-Extension/issues)
 
 ---
 

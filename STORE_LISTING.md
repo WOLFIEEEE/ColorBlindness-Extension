@@ -76,16 +76,12 @@ WCAG Level AAA:
 • All data stored locally on your device
 • No tracking or analytics
 • No data sent to external servers
-• Open source - review our code anytime
 
 🌐 BROWSER SUPPORT
 Works on Chrome 95+, Edge 95+, and other Chromium browsers.
 
 Note: Cannot access Chrome Web Store or chrome:// pages (browser security restriction that applies to all extensions).
 
-💻 OPEN SOURCE
-This extension is completely open source. View, contribute, or fork the code:
-https://github.com/thewcag/extension
 
 📚 LEARN MORE
 Visit https://thewcag.com for comprehensive WCAG guidelines and accessibility resources.
@@ -199,14 +195,14 @@ This extension checks color contrast ratios against WCAG accessibility standards
 ## Privacy Policy URL
 Host your PRIVACY.md content at a public URL, such as:
 - `https://thewcag.com/extension/privacy`
-- `https://github.com/thewcag/extension/blob/main/PRIVACY.md`
+- `https://github.com/thewcag/TheWCAG-Extension/blob/main/PRIVACY.md`
 
 ---
 
 ## Support Information
 
 ### Support URL (Optional)
-`https://github.com/thewcag/extension/issues`
+`https://github.com/thewcag/TheWCAG-Extension/issues`
 
 ### Homepage URL
 `https://thewcag.com`
