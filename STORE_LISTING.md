@@ -195,14 +195,14 @@ This extension checks color contrast ratios against WCAG accessibility standards
 ## Privacy Policy URL
 Host your PRIVACY.md content at a public URL, such as:
 - `https://thewcag.com/extension/privacy`
-- `https://github.com/thewcag/TheWCAG-Extension/blob/main/PRIVACY.md`
+- `https://github.com/WOLFIEEEE/TheWCAG-Extension/blob/main/PRIVACY.md`
 
 ---
 
 ## Support Information
 
 ### Support URL (Optional)
-`https://github.com/thewcag/TheWCAG-Extension/issues`
+`https://github.com/WOLFIEEEE/TheWCAG-Extension/issues`
 
 ### Homepage URL
 `https://thewcag.com`

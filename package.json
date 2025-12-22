@@ -5,7 +5,7 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/thewcag/TheWCAG-Extension.git"
+    "url": "https://github.com/WOLFIEEEE/TheWCAG-Extension.git"
   },
   "scripts": {
     "dev": "vite",

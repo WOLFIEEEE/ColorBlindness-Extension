@@ -49,7 +49,7 @@ A production-grade Chrome extension for checking color contrast ratios against W
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/thewcag/TheWCAG-Extension.git
+   git clone https://github.com/WOLFIEEEE/TheWCAG-Extension.git
    cd TheWCAG-Extension
    ```
 
@@ -326,7 +326,7 @@ Copyright (c) 2024 TheWCAG.com. All rights reserved.
 - [TheWCAG.com](https://thewcag.com) - Full WCAG reference and tools
 - [WCAG 2.2 Guidelines](https://www.w3.org/TR/WCAG22/)
 - [Understanding WCAG Contrast](https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html)
-- [Report Issues](https://github.com/thewcag/TheWCAG-Extension/issues)
+- [Report Issues](https://github.com/WOLFIEEEE/TheWCAG-Extension/issues)
 
 ## Changelog
 
