@@ -16,5 +16,6 @@ if (container) {
   )
 } else {
   console.error('DevTools panel: Root element not found')
+  document.body.innerHTML = '<div style="padding: 20px; color: red;">Error: Root element not found in DevTools panel</div>'
 }
 

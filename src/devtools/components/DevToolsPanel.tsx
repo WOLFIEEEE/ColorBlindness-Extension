@@ -133,7 +133,8 @@ export function DevToolsPanel() {
     setScanError(null)
     
     try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
+      const [tab] = tabs
       
       if (!tab?.id || !tab.url) {
         setScanError('No active tab found. Please open a webpage first.')
@@ -144,6 +145,7 @@ export function DevToolsPanel() {
       // Check for restricted pages
       if (tab.url.startsWith('chrome://') || 
           tab.url.startsWith('chrome-extension://') || 
+          tab.url.startsWith('devtools://') ||
           tab.url.includes('chrome.google.com/webstore')) {
         setScanError('Cannot scan this page. Chrome restricts extensions on browser internal pages and the Web Store.')
         setIsScanning(false)
@@ -177,7 +179,7 @@ export function DevToolsPanel() {
       })
     } catch (error) {
       console.error('Scan error:', error)
-      setScanError('An unexpected error occurred while scanning.')
+      setScanError('An unexpected error occurred while scanning. Try refreshing the page.')
       setIsScanning(false)
     }
   }, [ensureContentScriptLoaded])
