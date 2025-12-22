@@ -158,7 +158,8 @@ export function PopupApp() {
     }
     
     initializeColors()
-  }, []) // Only run on mount - we handle state internally
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Intentionally empty - run only on mount to restore saved state, not on every color change
 
   // Save colors to storage whenever they change
   useEffect(() => {
@@ -180,10 +181,11 @@ export function PopupApp() {
     }
   }, [targetLevel, textSize, foregroundRgb, backgroundRgb])
 
-  // Initial calculation
+  // Initial calculation on mount
   useEffect(() => {
     updateColors(foregroundRgb, backgroundRgb)
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Intentionally empty - only calculate once on mount, state changes handled by updateColors callback
 
   // Handle history item click
   const handleHistorySelect = useCallback((pair: ColorPair) => {

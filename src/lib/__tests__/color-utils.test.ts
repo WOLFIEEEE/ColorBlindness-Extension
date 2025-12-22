@@ -289,5 +289,116 @@ describe('blendColors', () => {
     expect(halfOpacity.g).toBe(0)
     expect(halfOpacity.b).toBe(128)
   })
+
+  it('should handle semi-transparent overlays', () => {
+    // White overlay at 10% on dark background
+    const fg: RGB = { r: 255, g: 255, b: 255 }
+    const bg: RGB = { r: 30, g: 30, b: 50 }
+    const result = blendColors(fg, bg, 0.1)
+    
+    // Should be slightly lighter than background
+    expect(result.r).toBeGreaterThan(bg.r)
+    expect(result.g).toBeGreaterThan(bg.g)
+    expect(result.b).toBeGreaterThan(bg.b)
+    expect(result.r).toBeLessThan(fg.r)
+  })
+})
+
+describe('Modern CSS Color Formats', () => {
+  describe('parseColor with space-separated RGB', () => {
+    it('should parse modern RGB syntax (space-separated)', () => {
+      const result = parseColor('rgb(255 128 0)')
+      expect(result).toEqual({ r: 255, g: 128, b: 0 })
+    })
+
+    it('should parse RGB with slash alpha', () => {
+      const result = parseColor('rgb(255 128 0 / 0.5)')
+      expect(result).toEqual({ r: 255, g: 128, b: 0 })
+    })
+
+    it('should parse RGB with percentage alpha', () => {
+      const result = parseColor('rgb(100 150 200 / 50%)')
+      expect(result).toEqual({ r: 100, g: 150, b: 200 })
+    })
+  })
+
+  describe('parseColor with space-separated HSL', () => {
+    it('should parse modern HSL syntax (space-separated)', () => {
+      const result = parseColor('hsl(180 50% 50%)')
+      expect(result).not.toBeNull()
+      expect(result?.r).toBeCloseTo(64, 0)
+      expect(result?.g).toBeCloseTo(191, 0)
+      expect(result?.b).toBeCloseTo(191, 0)
+    })
+
+    it('should parse HSL with deg unit', () => {
+      const result = parseColor('hsl(180deg 50% 50%)')
+      expect(result).not.toBeNull()
+    })
+  })
+
+  describe('parseColor with color(srgb)', () => {
+    it('should parse color(srgb) format', () => {
+      // sRGB values are 0-1, should convert to 0-255
+      const result = parseColor('color(srgb 1 0.5 0)')
+      expect(result).toEqual({ r: 255, g: 128, b: 0 })
+    })
+
+    it('should parse color(srgb) with alpha', () => {
+      const result = parseColor('color(srgb 0.5 0.5 0.5 / 0.5)')
+      expect(result).toEqual({ r: 128, g: 128, b: 128 })
+    })
+  })
+
+  describe('parseColor with oklch()', () => {
+    it('should parse oklch() format', () => {
+      // oklch(lightness chroma hue)
+      const result = parseColor('oklch(0.7 0.15 180)')
+      expect(result).not.toBeNull()
+      // Should be a cyan-ish color
+      expect(result?.g).toBeGreaterThan(result?.r || 0)
+    })
+
+    it('should parse oklch() with percentage lightness', () => {
+      const result = parseColor('oklch(70% 0.15 180)')
+      expect(result).not.toBeNull()
+    })
+
+    it('should parse oklch() with deg hue', () => {
+      const result = parseColor('oklch(0.5 0.1 180deg)')
+      expect(result).not.toBeNull()
+    })
+  })
+
+  describe('parseColor with lab()', () => {
+    it('should parse lab() format', () => {
+      // lab(lightness a b)
+      const result = parseColor('lab(50% 0 0)')
+      expect(result).not.toBeNull()
+      // Gray color (a=0, b=0)
+      expect(result?.r).toBeCloseTo(result?.g || 0, -1)
+      expect(result?.g).toBeCloseTo(result?.b || 0, -1)
+    })
+
+    it('should parse lab() with positive a (red)', () => {
+      const result = parseColor('lab(50% 50 0)')
+      expect(result).not.toBeNull()
+      // Should have more red than green
+      expect(result?.r).toBeGreaterThan(result?.g || 0)
+    })
+  })
+
+  describe('parseColor with lch()', () => {
+    it('should parse lch() format', () => {
+      // lch(lightness chroma hue)
+      const result = parseColor('lch(50% 30 180)')
+      expect(result).not.toBeNull()
+    })
+
+    it('should parse lch() with deg hue', () => {
+      const result = parseColor('lch(50% 30 180deg)')
+      expect(result).not.toBeNull()
+    })
+  })
 })
 

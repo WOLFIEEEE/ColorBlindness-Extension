@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TheWCAG Color Contrast Checker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Check color contrast ratios for WCAG 2.2 AA/AAA compliance. Features eyedropper, auto-suggestions, full page scanning, and color history.",
   "author": "TheWCAG.com",
   "homepage_url": "https://thewcag.com",

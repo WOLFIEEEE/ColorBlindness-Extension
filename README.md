@@ -110,13 +110,6 @@ Click the extension icon in your toolbar to open the popup panel:
 4. Reopen the popup to see the picked color applied
 5. A badge appears on the extension icon when a color is picked
 
-### Keyboard Shortcuts
-
-| Action | Shortcut |
-|--------|----------|
-| Toggle Eyedropper | `Ctrl+Shift+E` |
-| Scan Page | `Ctrl+Shift+S` |
-
 ### DevTools Panel
 
 1. Open Chrome DevTools (`F12` or `Cmd+Option+I`)
@@ -217,18 +210,31 @@ npm run typecheck    # TypeScript type checking
 
 ## Color Format Support
 
-The extension accepts colors in multiple formats:
+The extension accepts colors in multiple formats, including modern CSS Color Level 4 syntax:
 
 | Format | Example |
 |--------|---------|
 | HEX (6-digit) | `#FF5500`, `FF5500` |
 | HEX (3-digit) | `#F50`, `F50` |
 | HEX (8-digit with alpha) | `#FF5500FF` |
-| RGB | `rgb(255, 85, 0)` |
+| RGB (legacy) | `rgb(255, 85, 0)` |
+| RGB (modern) | `rgb(255 85 0)`, `rgb(255 85 0 / 50%)` |
 | RGBA | `rgba(255, 85, 0, 1)` |
-| HSL | `hsl(20, 100%, 50%)` |
+| HSL (legacy) | `hsl(20, 100%, 50%)` |
+| HSL (modern) | `hsl(20 100% 50%)`, `hsl(20deg 100% 50% / 0.5)` |
 | HSLA | `hsla(20, 100%, 50%, 1)` |
+| color(srgb) | `color(srgb 1 0.5 0)` |
+| OKLCH | `oklch(0.7 0.15 180)`, `oklch(70% 0.15 180deg)` |
+| LAB | `lab(50% 25 -20)` |
+| LCH | `lch(50% 30 180)` |
 | Named Colors | `red`, `navy`, `orange`, etc. |
+
+### Page Scanner Features
+
+The scanner properly handles:
+- **Semi-transparent backgrounds**: Blends multiple layers using alpha compositing
+- **CSS Variables**: Resolves computed values from custom properties
+- **Modern color spaces**: Parses colors in newer CSS color formats
 
 ## Browser Compatibility
 
@@ -335,6 +341,27 @@ MIT License - See [LICENSE](LICENSE) file for details.
 - [Report Issues](https://github.com/thewcag/extension/issues)
 
 ## Changelog
+
+### v1.0.1
+
+**Bug Fixes & Improvements:**
+
+- **Scanner Alpha Blending**: Properly blends semi-transparent backgrounds using alpha compositing
+- **Modern CSS Color Support**: Added parsing for `lab()`, `lch()`, `oklch()`, `color(srgb)` formats
+- **Space-Separated CSS Syntax**: Support for modern `rgb(255 128 0)` and `hsl(180 50% 50%)` syntax
+- **Text Extraction**: Improved detection of text in nested elements and complex DOM structures
+- **Content Script Injection**: Fallback injection for pages opened before extension install
+- **DevTools Panel**: Fixed panel loading and error handling on restricted pages
+- **Color Persistence**: Colors now persist across popup reopens during eyedropper use
+- **Scanner Accuracy**: Excludes extension UI elements from scan results
+- **Float RGB Values**: Handle floating-point RGB values from computed styles
+- **Improved Selectors**: Generate more readable CSS selectors for scan results
+- **Error Messaging**: Clearer error messages for restricted pages (chrome://, Web Store)
+
+**Test Coverage:**
+
+- Added 15 new tests for modern color formats
+- Total: 76 tests passing
 
 ### v1.0.0
 

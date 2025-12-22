@@ -1,6 +1,6 @@
 {
   "name": "thewcag-color-contrast-checker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Production-grade WCAG color contrast checker with eyedropper, auto-suggestions, and full page scanning",
   "type": "module",
   "scripts": {
