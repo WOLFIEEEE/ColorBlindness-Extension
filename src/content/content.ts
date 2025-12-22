@@ -251,22 +251,50 @@ interface ScanResult {
 async function scanPage(): Promise<ScanResult[]> {
   if (isScanning) return []
   isScanning = true
+  
+  console.log('Starting page scan...')
 
   const results: ScanResult[] = []
-  const textElements = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, span, a, button, label, li, td, th, div')
+  const seen = new Set<string>() // Track unique elements to avoid duplicates
+  
+  // Get all elements that typically contain text
+  const textElements = document.querySelectorAll(
+    'p, h1, h2, h3, h4, h5, h6, span, a, button, label, li, td, th, ' +
+    'article, section, main, header, footer, nav, aside, ' +
+    'blockquote, figcaption, caption, summary, details, ' +
+    'strong, em, b, i, u, small, mark, del, ins, sub, sup, code, pre'
+  )
+  
+  console.log(`Found ${textElements.length} potential text elements`)
 
   textElements.forEach((el) => {
     const element = el as HTMLElement
     const style = window.getComputedStyle(element)
     
     // Skip hidden elements
-    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+    if (style.display === 'none' || style.visibility === 'hidden') {
+      return
+    }
+    
+    // Skip elements with 0 opacity
+    if (parseFloat(style.opacity) === 0) {
+      return
+    }
+    
+    // Skip elements with no dimensions
+    const rect = element.getBoundingClientRect()
+    if (rect.width === 0 || rect.height === 0) {
       return
     }
 
-    // Get text content (direct text nodes only)
-    const text = getDirectTextContent(element)
-    if (!text.trim()) return
+    // Get visible text content
+    const text = getVisibleTextContent(element)
+    if (!text.trim() || text.trim().length < 2) return
+    
+    // Create a unique key to avoid duplicates
+    const uniqueKey = `${element.tagName}-${text.substring(0, 30)}-${style.color}-${style.fontSize}`
+    if (seen.has(uniqueKey)) return
+    seen.add(uniqueKey)
 
     // Get colors
     const fgColorStr = style.color
@@ -275,7 +303,10 @@ async function scanPage(): Promise<ScanResult[]> {
     const fgColor = parseColor(fgColorStr)
     const bgColor = parseColor(bgColorStr)
 
-    if (!fgColor || !bgColor) return
+    if (!fgColor || !bgColor) {
+      console.log(`Could not parse colors for element:`, element.tagName, fgColorStr, bgColorStr)
+      return
+    }
 
     const ratio = calculateContrastRatio(fgColor, bgColor)
     const analysis = analyzeContrast(fgColor, bgColor)
@@ -294,20 +325,42 @@ async function scanPage(): Promise<ScanResult[]> {
   })
 
   isScanning = false
+  console.log(`Scan complete. Found ${results.length} text elements with contrast data.`)
   return results
 }
 
 /**
- * Get direct text content (not from children)
+ * Get visible text content from an element
+ * This gets text that the user can actually see
  */
-function getDirectTextContent(element: HTMLElement): string {
-  let text = ''
+function getVisibleTextContent(element: HTMLElement): string {
+  // First try to get direct text nodes only (more accurate for styling)
+  let directText = ''
   element.childNodes.forEach((node) => {
     if (node.nodeType === Node.TEXT_NODE) {
-      text += node.textContent || ''
+      directText += node.textContent || ''
     }
   })
-  return text
+  
+  // If we found direct text, use that
+  if (directText.trim()) {
+    return directText.trim()
+  }
+  
+  // Otherwise, check if this is a leaf element (no child elements with text)
+  const childElements = element.querySelectorAll('*')
+  if (childElements.length === 0) {
+    // No child elements, use innerText
+    return (element.innerText || element.textContent || '').trim()
+  }
+  
+  // For elements with children, only return text if it's short (likely a label/button)
+  const innerText = (element.innerText || '').trim()
+  if (innerText.length <= 100) {
+    return innerText
+  }
+  
+  return ''
 }
 
 /**
