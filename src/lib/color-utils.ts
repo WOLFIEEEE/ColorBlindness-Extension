@@ -26,6 +26,7 @@ export interface RGBA extends RGB {
 
 /**
  * Parse any color string to RGB
+ * Handles: hex, rgb, rgba, hsl, hsla, color(srgb), oklch, named colors
  */
 export function parseColor(color: string): RGB | null {
   // Remove whitespace
@@ -43,11 +44,53 @@ export function parseColor(color: string): RGB | null {
   const hsl = parseHslString(color)
   if (hsl) return hslToRgb(hsl)
 
+  // Try color(srgb ...) function - Chrome uses this for some computed styles
+  const srgb = parseSrgbColor(color)
+  if (srgb) return srgb
+
+  // Try oklch() - modern perceptual color space
+  const oklch = parseOklchString(color)
+  if (oklch) return oklchToRgb(oklch)
+
   // Try named colors
   const named = parseNamedColor(color)
   if (named) return named
 
   return null
+}
+
+/**
+ * Parse color(srgb r g b) or color(srgb r g b / a) format
+ * Values are 0-1 range, need to convert to 0-255
+ */
+function parseSrgbColor(str: string): RGB | null {
+  const match = str.match(/color\s*\(\s*srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*[\d.]+%?)?\s*\)/)
+  if (!match) return null
+
+  return {
+    r: Math.min(255, Math.max(0, Math.round(parseFloat(match[1]) * 255))),
+    g: Math.min(255, Math.max(0, Math.round(parseFloat(match[2]) * 255))),
+    b: Math.min(255, Math.max(0, Math.round(parseFloat(match[3]) * 255))),
+  }
+}
+
+/**
+ * Parse oklch(l c h) or oklch(l c h / a) format
+ */
+function parseOklchString(str: string): OKLCH | null {
+  const match = str.match(/oklch\s*\(\s*([\d.]+)%?\s+([\d.]+)\s+([\d.]+)(?:deg)?(?:\s*\/\s*[\d.]+%?)?\s*\)/)
+  if (!match) return null
+
+  // L is typically 0-100% or 0-1, C is 0-0.4 typically, H is 0-360
+  let l = parseFloat(match[1])
+  // If L > 1, assume it's a percentage
+  if (l > 1) l = l / 100
+  
+  return {
+    l: Math.min(1, Math.max(0, l)),
+    c: Math.min(0.4, Math.max(0, parseFloat(match[2]))),
+    h: parseFloat(match[3]) % 360,
+  }
 }
 
 /**
@@ -84,31 +127,61 @@ export function parseHex(hex: string): RGB | null {
 }
 
 /**
- * Parse RGB/RGBA string
+ * Parse RGB/RGBA string - handles both legacy and modern CSS syntax
+ * Legacy: rgb(255, 128, 0) or rgba(255, 128, 0, 0.5)
+ * Modern: rgb(255 128 0) or rgb(255 128 0 / 0.5)
  */
 export function parseRgbString(str: string): RGB | null {
-  const match = str.match(/rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*[\d.]+)?\s*\)/)
-  if (!match) return null
-
-  return {
-    r: Math.min(255, Math.max(0, parseInt(match[1]))),
-    g: Math.min(255, Math.max(0, parseInt(match[2]))),
-    b: Math.min(255, Math.max(0, parseInt(match[3]))),
+  // Try legacy comma-separated format first
+  const legacyMatch = str.match(/rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*[\d.]+)?\s*\)/)
+  if (legacyMatch) {
+    return {
+      r: Math.min(255, Math.max(0, parseInt(legacyMatch[1]))),
+      g: Math.min(255, Math.max(0, parseInt(legacyMatch[2]))),
+      b: Math.min(255, Math.max(0, parseInt(legacyMatch[3]))),
+    }
   }
+
+  // Try modern space-separated format: rgb(255 128 0) or rgb(255 128 0 / 0.5)
+  const modernMatch = str.match(/rgba?\s*\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*[\d.]+%?)?\s*\)/)
+  if (modernMatch) {
+    return {
+      r: Math.min(255, Math.max(0, Math.round(parseFloat(modernMatch[1])))),
+      g: Math.min(255, Math.max(0, Math.round(parseFloat(modernMatch[2])))),
+      b: Math.min(255, Math.max(0, Math.round(parseFloat(modernMatch[3])))),
+    }
+  }
+
+  return null
 }
 
 /**
- * Parse HSL/HSLA string
+ * Parse HSL/HSLA string - handles both legacy and modern CSS syntax
+ * Legacy: hsl(180, 50%, 50%) or hsla(180, 50%, 50%, 0.5)
+ * Modern: hsl(180 50% 50%) or hsl(180 50% 50% / 0.5)
  */
 export function parseHslString(str: string): HSL | null {
-  const match = str.match(/hsla?\s*\(\s*([\d.]+)\s*,\s*([\d.]+)%?\s*,\s*([\d.]+)%?(?:\s*,\s*[\d.]+)?\s*\)/)
-  if (!match) return null
-
-  return {
-    h: parseFloat(match[1]) % 360,
-    s: Math.min(100, Math.max(0, parseFloat(match[2]))),
-    l: Math.min(100, Math.max(0, parseFloat(match[3]))),
+  // Try legacy comma-separated format first
+  const legacyMatch = str.match(/hsla?\s*\(\s*([\d.]+)\s*,\s*([\d.]+)%?\s*,\s*([\d.]+)%?(?:\s*,\s*[\d.]+)?\s*\)/)
+  if (legacyMatch) {
+    return {
+      h: parseFloat(legacyMatch[1]) % 360,
+      s: Math.min(100, Math.max(0, parseFloat(legacyMatch[2]))),
+      l: Math.min(100, Math.max(0, parseFloat(legacyMatch[3]))),
+    }
   }
+
+  // Try modern space-separated format: hsl(180 50% 50%) or hsl(180 50% 50% / 0.5)
+  const modernMatch = str.match(/hsla?\s*\(\s*([\d.]+)(?:deg)?\s+([\d.]+)%?\s+([\d.]+)%?(?:\s*\/\s*[\d.]+%?)?\s*\)/)
+  if (modernMatch) {
+    return {
+      h: parseFloat(modernMatch[1]) % 360,
+      s: Math.min(100, Math.max(0, parseFloat(modernMatch[2]))),
+      l: Math.min(100, Math.max(0, parseFloat(modernMatch[3]))),
+    }
+  }
+
+  return null
 }
 
 /**

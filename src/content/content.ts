@@ -274,6 +274,11 @@ async function scanPage(): Promise<ScanResult[]> {
   
   console.log(`Found ${textElements.length} potential text elements`)
 
+  let skippedNoText = 0
+  let skippedHidden = 0
+  let skippedNoDimensions = 0
+  let skippedColorParse = 0
+
   // Process elements to find those with actual visible text
   textElements.forEach((el) => {
     const element = el as HTMLElement
@@ -290,23 +295,29 @@ async function scanPage(): Promise<ScanResult[]> {
     
     // Skip hidden elements
     if (style.display === 'none' || style.visibility === 'hidden') {
+      skippedHidden++
       return
     }
     
     // Skip elements with 0 opacity
     if (parseFloat(style.opacity) === 0) {
+      skippedHidden++
       return
     }
     
     // Skip elements with no dimensions
     const rect = element.getBoundingClientRect()
     if (rect.width === 0 || rect.height === 0) {
+      skippedNoDimensions++
       return
     }
 
     // Get visible text content - only direct text or leaf element text
     const text = getDirectTextContent(element)
-    if (!text.trim()) return
+    if (!text.trim()) {
+      skippedNoText++
+      return
+    }
     
     // Mark as processed
     processedElements.add(element)
@@ -319,6 +330,8 @@ async function scanPage(): Promise<ScanResult[]> {
     const bgColor = parseColor(bgColorStr)
 
     if (!fgColor || !bgColor) {
+      skippedColorParse++
+      console.log('Color parse failed:', { fgColorStr, bgColorStr, fgColor, bgColor })
       return
     }
 
@@ -336,6 +349,15 @@ async function scanPage(): Promise<ScanResult[]> {
       fontWeight: style.fontWeight,
       text: text.substring(0, 50) + (text.length > 50 ? '...' : ''),
     })
+  })
+
+  console.log('Scan stats:', {
+    total: textElements.length,
+    found: results.length,
+    skippedNoText,
+    skippedHidden,
+    skippedNoDimensions,
+    skippedColorParse
   })
 
   isScanning = false
@@ -366,9 +388,18 @@ function isExtensionElement(element: HTMLElement): boolean {
 /**
  * Get direct text content from an element
  * Returns text that this specific element is responsible for rendering
- * (not text from child elements that would have their own styling)
  */
 function getDirectTextContent(element: HTMLElement): string {
+  const tagName = element.tagName.toLowerCase()
+  
+  // For headings, buttons, links, labels - always get full text (these own their content)
+  if (['button', 'a', 'label', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'th', 'td', 'li', 'dt', 'dd'].includes(tagName)) {
+    const text = (element.innerText || element.textContent || '').trim()
+    if (text && text.length <= 300) {
+      return text
+    }
+  }
+  
   // First try to get direct text nodes only (most accurate for styling)
   let directText = ''
   element.childNodes.forEach((node) => {
@@ -392,25 +423,24 @@ function getDirectTextContent(element: HTMLElement): string {
     return (element.innerText || element.textContent || '').trim()
   }
   
-  // For elements with only inline children (strong, em, b, i, etc.), get the combined text
+  // For elements with only inline/inline-block children, get the combined text
   const inlineOnly = Array.from(childElements).every(child => {
     const display = window.getComputedStyle(child as HTMLElement).display
-    return display === 'inline' || display === 'inline-block'
+    return display === 'inline' || display === 'inline-block' || display === 'inline-flex'
   })
   
-  if (inlineOnly && element.innerText) {
-    const text = element.innerText.trim()
+  if (inlineOnly) {
+    const text = (element.innerText || '').trim()
     // Only return if it's reasonably sized (not a huge container)
-    if (text.length <= 200) {
+    if (text && text.length <= 300) {
       return text
     }
   }
   
-  // For buttons, labels, links - get their full text regardless of structure
-  const tagName = element.tagName.toLowerCase()
-  if (['button', 'a', 'label', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tagName)) {
-    const text = (element.innerText || element.textContent || '').trim()
-    if (text.length <= 200) {
+  // For paragraphs and spans, try innerText as fallback if not too long
+  if (['p', 'span', 'div', 'code', 'pre', 'blockquote'].includes(tagName)) {
+    const text = (element.innerText || '').trim()
+    if (text && text.length <= 300 && text.length > 0) {
       return text
     }
   }
