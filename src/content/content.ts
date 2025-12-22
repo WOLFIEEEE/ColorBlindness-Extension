@@ -399,12 +399,17 @@ async function scanPage(): Promise<ScanResult[]> {
     // Mark as processed
     processedElements.add(element)
 
-    // Get colors (with robust fallback parsing)
+    // Get background color first (with proper alpha blending)
+    const bgColor = getEffectiveBackgroundRgb(element)
+    
+    // Get foreground color
     const fg = parseCssColorToRgb(style.color, 'color')
-    const bg = getEffectiveBackgroundRgb(element)
-
-    const fgColor = fg.rgb
-    const bgColor = bg
+    
+    // If foreground has alpha, blend it with background
+    let fgColor = fg.rgb
+    if (fgColor && fg.alpha < 0.99 && bgColor) {
+      fgColor = blendColors(fgColor, fg.alpha, bgColor)
+    }
 
     if (!fgColor || !bgColor) {
       skippedColorParse++
@@ -415,7 +420,7 @@ async function scanPage(): Promise<ScanResult[]> {
           text: text.substring(0, 20),
           fgInput: style.color, 
           fgParsed: fg,
-          bgParsed: bg
+          bgParsed: bgColor
         })
       }
       return
@@ -542,26 +547,62 @@ function getDirectTextContent(element: HTMLElement): string {
 }
 
 /**
- * Get effective background color (walk up tree)
+ * Get effective background color by walking up the DOM tree
+ * and properly blending semi-transparent backgrounds
  */
 function getEffectiveBackgroundRgb(element: HTMLElement): { r: number; g: number; b: number } | null {
+  // Collect all backgrounds from element to root (with their alpha values)
+  const backgrounds: Array<{ rgb: { r: number; g: number; b: number }; alpha: number }> = []
   let current: HTMLElement | null = element
   
   while (current) {
     const style = window.getComputedStyle(current)
     const bg = style.backgroundColor
     
-    // Normalize and check transparency robustly
     const parsed = parseCssColorToRgb(bg, 'backgroundColor')
-    if (parsed.rgb && parsed.alpha > 0.01) {
-      return parsed.rgb
+    if (parsed.rgb) {
+      backgrounds.push({ rgb: parsed.rgb, alpha: parsed.alpha })
+      
+      // If we found a fully opaque background, we can stop
+      if (parsed.alpha >= 0.99) {
+        break
+      }
     }
     
     current = current.parentElement
   }
   
-  // Default to white if no background found
-  return { r: 255, g: 255, b: 255 }
+  // If no backgrounds found, default to white (common browser default)
+  if (backgrounds.length === 0) {
+    return { r: 255, g: 255, b: 255 }
+  }
+  
+  // Start with the deepest (most ancestral) background, or white if all are semi-transparent
+  let result = { r: 255, g: 255, b: 255 }
+  
+  // Work backwards from root to element, blending each layer
+  for (let i = backgrounds.length - 1; i >= 0; i--) {
+    const layer = backgrounds[i]
+    result = blendColors(layer.rgb, layer.alpha, result)
+  }
+  
+  return result
+}
+
+/**
+ * Blend a foreground color with alpha over a background color
+ * Uses standard alpha compositing (source-over)
+ */
+function blendColors(
+  fg: { r: number; g: number; b: number },
+  alpha: number,
+  bg: { r: number; g: number; b: number }
+): { r: number; g: number; b: number } {
+  return {
+    r: Math.round(fg.r * alpha + bg.r * (1 - alpha)),
+    g: Math.round(fg.g * alpha + bg.g * (1 - alpha)),
+    b: Math.round(fg.b * alpha + bg.b * (1 - alpha)),
+  }
 }
 
 /**
