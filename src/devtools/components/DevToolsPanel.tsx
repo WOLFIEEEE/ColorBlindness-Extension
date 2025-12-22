@@ -71,23 +71,116 @@ export function DevToolsPanel() {
     setBackgroundRgb(foregroundRgb)
   }, [foregroundHex, backgroundHex, foregroundRgb, backgroundRgb])
 
-  const handleScanPage = useCallback(async () => {
-    setIsScanning(true)
+  // Ensure content script is loaded before sending messages
+  const ensureContentScriptLoaded = useCallback(async (tabId: number): Promise<boolean> => {
+    // First, try to ping the content script
     try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-      if (tab?.id) {
-        chrome.tabs.sendMessage(tab.id, { type: 'SCAN_PAGE' }, (response) => {
-          if (response?.results) {
-            setScanResults(response.results)
-          }
-          setIsScanning(false)
+      const response = await chrome.tabs.sendMessage(tabId, { type: 'PING' })
+      if (response?.success === true) {
+        return true
+      }
+    } catch {
+      console.log('Content script not responding, will attempt injection...')
+    }
+    
+    // Content script not loaded, try programmatic injection
+    try {
+      const manifest = chrome.runtime.getManifest()
+      const contentScriptConfig = manifest.content_scripts?.[0]
+      
+      if (!contentScriptConfig) {
+        console.error('No content script configuration found in manifest')
+        return false
+      }
+      
+      // Inject JavaScript files
+      if (contentScriptConfig.js && contentScriptConfig.js.length > 0) {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          files: contentScriptConfig.js
         })
       }
-    } catch (error) {
-      console.error('Scan error:', error)
-      setIsScanning(false)
+      
+      // Inject CSS files
+      if (contentScriptConfig.css && contentScriptConfig.css.length > 0) {
+        await chrome.scripting.insertCSS({
+          target: { tabId },
+          files: contentScriptConfig.css
+        })
+      }
+      
+      // Wait for script to initialize
+      await new Promise(resolve => setTimeout(resolve, 150))
+      
+      // Verify injection worked
+      try {
+        const verifyResponse = await chrome.tabs.sendMessage(tabId, { type: 'PING' })
+        return verifyResponse?.success === true
+      } catch {
+        console.error('Content script injected but not responding')
+        return false
+      }
+    } catch (injectError) {
+      console.error('Failed to inject content script:', injectError)
+      return false
     }
   }, [])
+
+  const [scanError, setScanError] = useState<string | null>(null)
+
+  const handleScanPage = useCallback(async () => {
+    setIsScanning(true)
+    setScanError(null)
+    
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      
+      if (!tab?.id || !tab.url) {
+        setScanError('No active tab found. Please open a webpage first.')
+        setIsScanning(false)
+        return
+      }
+      
+      // Check for restricted pages
+      if (tab.url.startsWith('chrome://') || 
+          tab.url.startsWith('chrome-extension://') || 
+          tab.url.includes('chrome.google.com/webstore')) {
+        setScanError('Cannot scan this page. Chrome restricts extensions on browser internal pages and the Web Store.')
+        setIsScanning(false)
+        return
+      }
+      
+      // Ensure content script is loaded
+      const isLoaded = await ensureContentScriptLoaded(tab.id)
+      if (!isLoaded) {
+        setScanError('Could not initialize scanner on this page. Try refreshing the page.')
+        setIsScanning(false)
+        return
+      }
+      
+      // Send scan request and wait for response
+      chrome.tabs.sendMessage(tab.id, { type: 'SCAN_PAGE' }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('Scan message error:', chrome.runtime.lastError)
+          setScanError('Failed to communicate with the page. Try refreshing.')
+          setIsScanning(false)
+          return
+        }
+        
+        if (response?.results) {
+          setScanResults(response.results)
+          setScanError(null)
+        } else {
+          setScanError('No results received. The page may not have scannable text elements.')
+        }
+        setIsScanning(false)
+      })
+    } catch (error) {
+      console.error('Scan error:', error)
+      setScanError('An unexpected error occurred while scanning.')
+      setIsScanning(false)
+    }
+  }, [ensureContentScriptLoaded])
 
   const handleApplySuggestion = useCallback((type: 'foreground' | 'background', rgb: RGB) => {
     if (type === 'foreground') {
@@ -392,7 +485,32 @@ export function DevToolsPanel() {
               </>
             )}
 
-            {scanResults.length === 0 && !isScanning && (
+            {/* Error Message */}
+            {scanError && (
+              <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm text-amber-700 dark:text-amber-300">{scanError}</p>
+                    <p className="text-xs text-amber-600 dark:text-amber-400/70 mt-2">
+                      💡 Tip: Make sure you have a regular webpage open (not Chrome settings or the Web Store).
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setScanError(null)}
+                    className="text-amber-600 dark:text-amber-400 hover:text-amber-800 shrink-0"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {scanResults.length === 0 && !isScanning && !scanError && (
               <div className="text-center py-12 text-warm-brown dark:text-cream/60">
                 <svg className="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
