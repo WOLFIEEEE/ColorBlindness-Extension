@@ -261,20 +261,25 @@ async function scanPage(): Promise<ScanResult[]> {
   console.log('Starting page scan...')
 
   const results: ScanResult[] = []
-  const seen = new Set<string>() // Track unique elements to avoid duplicates
+  const processedElements = new WeakSet<HTMLElement>() // Track processed elements
   
-  // Get all elements that typically contain text
+  // Get all elements that typically contain text - expanded list including div
   const textElements = document.querySelectorAll(
     'p, h1, h2, h3, h4, h5, h6, span, a, button, label, li, td, th, ' +
     'article, section, main, header, footer, nav, aside, ' +
     'blockquote, figcaption, caption, summary, details, ' +
-    'strong, em, b, i, u, small, mark, del, ins, sub, sup, code, pre'
+    'strong, em, b, i, u, small, mark, del, ins, sub, sup, code, pre, ' +
+    'div, time, address, cite, q, abbr, data, dfn, kbd, samp, var'
   )
   
   console.log(`Found ${textElements.length} potential text elements`)
 
+  // Process elements to find those with actual visible text
   textElements.forEach((el) => {
     const element = el as HTMLElement
+    
+    // Skip if already processed
+    if (processedElements.has(element)) return
     
     // IMPORTANT: Skip elements that are part of the extension's overlay
     if (isExtensionElement(element)) {
@@ -299,14 +304,12 @@ async function scanPage(): Promise<ScanResult[]> {
       return
     }
 
-    // Get visible text content
-    const text = getVisibleTextContent(element)
-    if (!text.trim() || text.trim().length < 2) return
+    // Get visible text content - only direct text or leaf element text
+    const text = getDirectTextContent(element)
+    if (!text.trim()) return
     
-    // Create a unique key to avoid duplicates
-    const uniqueKey = `${element.tagName}-${text.substring(0, 30)}-${style.color}-${style.fontSize}`
-    if (seen.has(uniqueKey)) return
-    seen.add(uniqueKey)
+    // Mark as processed
+    processedElements.add(element)
 
     // Get colors
     const fgColorStr = style.color
@@ -361,15 +364,19 @@ function isExtensionElement(element: HTMLElement): boolean {
 }
 
 /**
- * Get visible text content from an element
- * This gets text that the user can actually see
+ * Get direct text content from an element
+ * Returns text that this specific element is responsible for rendering
+ * (not text from child elements that would have their own styling)
  */
-function getVisibleTextContent(element: HTMLElement): string {
-  // First try to get direct text nodes only (more accurate for styling)
+function getDirectTextContent(element: HTMLElement): string {
+  // First try to get direct text nodes only (most accurate for styling)
   let directText = ''
   element.childNodes.forEach((node) => {
     if (node.nodeType === Node.TEXT_NODE) {
-      directText += node.textContent || ''
+      const text = node.textContent || ''
+      if (text.trim()) {
+        directText += text
+      }
     }
   })
   
@@ -378,17 +385,34 @@ function getVisibleTextContent(element: HTMLElement): string {
     return directText.trim()
   }
   
-  // Otherwise, check if this is a leaf element (no child elements with text)
-  const childElements = element.querySelectorAll('*')
+  // Check if this is a leaf element (no child elements)
+  const childElements = element.children
   if (childElements.length === 0) {
-    // No child elements, use innerText
+    // No child elements, this element owns all its text
     return (element.innerText || element.textContent || '').trim()
   }
   
-  // For elements with children, only return text if it's short (likely a label/button)
-  const innerText = (element.innerText || '').trim()
-  if (innerText.length <= 100) {
-    return innerText
+  // For elements with only inline children (strong, em, b, i, etc.), get the combined text
+  const inlineOnly = Array.from(childElements).every(child => {
+    const display = window.getComputedStyle(child as HTMLElement).display
+    return display === 'inline' || display === 'inline-block'
+  })
+  
+  if (inlineOnly && element.innerText) {
+    const text = element.innerText.trim()
+    // Only return if it's reasonably sized (not a huge container)
+    if (text.length <= 200) {
+      return text
+    }
+  }
+  
+  // For buttons, labels, links - get their full text regardless of structure
+  const tagName = element.tagName.toLowerCase()
+  if (['button', 'a', 'label', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tagName)) {
+    const text = (element.innerText || element.textContent || '').trim()
+    if (text.length <= 200) {
+      return text
+    }
   }
   
   return ''
