@@ -1,166 +1,29 @@
-/* Content script styles - injected into web pages */
-/* Namespaced to avoid conflicts with page styles */
+/**
+ * Content styles for Color Blindness Simulator
+ * Minimal styles for filter application
+ */
 
-.thewcag-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 2147483647;
-  pointer-events: none;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+/* Class added when filter is active */
+html.colorblind-filter-active {
+  /* Filter is applied via inline style */
 }
 
-.thewcag-overlay * {
-  box-sizing: border-box;
+/* Ensure the SVG filter container doesn't interfere with page */
+#colorblind-simulator-svg {
+  position: absolute !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
 }
 
-.thewcag-panel {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  width: 320px;
-  max-height: calc(100vh - 32px);
-  background: #FFFDF9;
-  border: 1px solid #E5DDD0;
-  border-radius: 12px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  pointer-events: auto;
-  overflow: hidden;
-  z-index: 2147483647;
+/* Smooth transition when applying/removing filters */
+html {
+  transition: filter 0.3s ease-in-out;
 }
 
-.thewcag-panel.dark {
-  background: #1F1F1E;
-  border-color: rgba(107, 91, 79, 0.3);
+/* Prevent filter from affecting certain elements if needed */
+.colorblind-ignore {
+  filter: none !important;
 }
-
-.thewcag-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid #E5DDD0;
-  background: #F5F0E6;
-}
-
-.thewcag-panel.dark .thewcag-panel-header {
-  background: rgba(107, 91, 79, 0.2);
-  border-color: rgba(107, 91, 79, 0.3);
-}
-
-.thewcag-panel-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  font-size: 14px;
-  color: #1F1F1E;
-}
-
-.thewcag-panel.dark .thewcag-panel-title {
-  color: #FFFDF9;
-}
-
-.thewcag-panel-close {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  border-radius: 6px;
-  color: #6B5B4F;
-  transition: all 0.15s ease;
-}
-
-.thewcag-panel-close:hover {
-  background: rgba(217, 119, 6, 0.1);
-  color: #D97706;
-}
-
-.thewcag-panel-content {
-  padding: 16px;
-  overflow-y: auto;
-  max-height: calc(100vh - 120px);
-}
-
-.thewcag-highlight {
-  outline: 3px solid #D97706 !important;
-  outline-offset: 2px !important;
-  position: relative;
-}
-
-.thewcag-highlight::after {
-  content: attr(data-wcag-info);
-  position: absolute;
-  top: -28px;
-  left: 0;
-  background: #D97706;
-  color: white;
-  padding: 4px 8px;
-  font-size: 11px;
-  font-weight: 500;
-  border-radius: 4px;
-  white-space: nowrap;
-  z-index: 2147483647;
-}
-
-.thewcag-eyedropper-cursor {
-  cursor: crosshair !important;
-}
-
-.thewcag-color-preview {
-  position: fixed;
-  padding: 8px 12px;
-  background: white;
-  border: 1px solid #E5DDD0;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  pointer-events: none;
-  z-index: 2147483647;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  font-family: 'Inter', system-ui, sans-serif;
-}
-
-.thewcag-color-preview-swatch {
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.thewcag-toast {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #1F1F1E;
-  color: #FFFDF9;
-  padding: 12px 20px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
-  z-index: 2147483647;
-  pointer-events: auto;
-  animation: thewcag-slide-up 0.3s ease;
-}
-
-@keyframes thewcag-slide-up {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}
-
