@@ -6,7 +6,9 @@ import {
   getAllFilterTypes,
   getFiltersByCategory,
   isAnomalyType,
-  getDefaultSeverity
+  getDefaultSeverity,
+  isValidType,
+  sanitizeSeverity
 } from '../../lib/colorblind-filters';
 import {
   getPreferences,
@@ -23,7 +25,6 @@ export function DevToolsPanel() {
   const [selectedFilter, setSelectedFilter] = useState<ColorBlindnessType>('deuteranopia');
   const [severity, setSeverity] = useState(100);
   const [isEnabled, setIsEnabledState] = useState(false);
-  const [compareMode, setCompareMode] = useState(false);
   const [gridMode, setGridMode] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
 
@@ -73,16 +74,23 @@ export function DevToolsPanel() {
     }
   }, []);
 
-  // Handle filter change
+  // Handle filter change with validation
   const handleFilterChange = useCallback(async (type: ColorBlindnessType) => {
+    // Validate filter type
+    if (!isValidType(type)) {
+      logger.warn('Invalid filter type:', type);
+      return;
+    }
+    
     setSelectedFilter(type);
     const newSeverity = isAnomalyType(type) ? severity : getDefaultSeverity(type);
-    setSeverity(newSeverity);
+    const sanitized = sanitizeSeverity(newSeverity);
+    setSeverity(sanitized);
     
     if (isEnabled && type !== 'normal') {
-      await applyFilter({ type, severity: newSeverity }, true);
+      await applyFilter({ type, severity: sanitized }, true);
     } else if (type === 'normal') {
-      await applyFilter({ type, severity: newSeverity }, false);
+      await applyFilter({ type, severity: sanitized }, false);
       setIsEnabledState(false);
     }
   }, [severity, isEnabled, applyFilter]);
@@ -96,11 +104,12 @@ export function DevToolsPanel() {
     await applyFilter({ type: selectedFilter, severity }, newEnabled);
   }, [selectedFilter, severity, isEnabled, applyFilter]);
 
-  // Handle severity change
+  // Handle severity change with validation
   const handleSeverityChange = useCallback(async (value: number) => {
-    setSeverity(value);
-    if (isEnabled) {
-      await applyFilter({ type: selectedFilter, severity: value }, true);
+    const sanitized = sanitizeSeverity(value);
+    setSeverity(sanitized);
+    if (isEnabled && isValidType(selectedFilter)) {
+      await applyFilter({ type: selectedFilter, severity: sanitized }, true);
     }
   }, [selectedFilter, isEnabled, applyFilter]);
 
@@ -172,9 +181,9 @@ export function DevToolsPanel() {
         {/* View mode toggles */}
         <div className="flex gap-2 mb-6">
           <button
-            onClick={() => { setGridMode(false); setCompareMode(false); }}
+            onClick={() => setGridMode(false)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              !gridMode && !compareMode
+              !gridMode
                 ? 'bg-emerald-500 text-white'
                 : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
@@ -182,7 +191,7 @@ export function DevToolsPanel() {
             Single Filter
           </button>
           <button
-            onClick={() => { setGridMode(true); setCompareMode(false); }}
+            onClick={() => setGridMode(true)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               gridMode
                 ? 'bg-emerald-500 text-white'
